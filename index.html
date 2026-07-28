@@ -128,7 +128,9 @@ body{font-family:'Noto Sans JP','メイリオ',Meiryo,'Hiragino Kaku Gothic ProN
 .cam-corner.bl{bottom:-2px;left:-2px;border-right:none;border-top:none}
 .cam-corner.br{bottom:-2px;right:-2px;border-left:none;border-top:none}
 #cam-video{width:100%;height:100%;object-fit:cover;display:block}
-.cam-kanban{position:absolute;left:2%;bottom:2%;top:auto;background:rgba(255,255,255,0.75);border:1.5px solid rgba(10,26,56,0.85);border-radius:5px;overflow:hidden;width:30%;min-width:140px;max-width:220px;box-shadow:1px 2px 5px rgba(0,0,0,0.3);z-index:3}
+.cam-kanban{position:absolute;left:2%;bottom:2%;top:auto;background:rgba(255,255,255,0.75);border:1.5px solid rgba(10,26,56,0.85);border-radius:5px;overflow:hidden;width:30%;min-width:140px;max-width:220px;box-shadow:1px 2px 5px rgba(0,0,0,0.3);z-index:3;cursor:move;touch-action:none;user-select:none;-webkit-user-select:none}
+.cam-size-btn{background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.4);color:#fff;height:34px;min-width:34px;padding:0 8px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:2px}
+.cam-size-btn:active{background:rgba(0,0,0,.7)}
 .cam-kanban.pos-bl{left:2%;bottom:2%;top:auto;right:auto}
 .cam-kanban.pos-br{right:2%;bottom:2%;top:auto;left:auto}
 .cam-kanban.pos-tl{left:2%;top:2%;bottom:auto;right:auto}
@@ -484,6 +486,8 @@ input[type=file]{display:none}
       <button class="cam-mp-btn" onclick="camNextMp()">▶</button>
     </div>
     <div style="display:flex;gap:6px;align-items:center">
+      <button id="cam-size-btn" class="cam-size-btn" onclick="cycleKanbanScale()" title="看板サイズ">🔲 中</button>
+      <button class="cam-size-btn" onclick="resetKanbanPos()" title="看板位置を左下に戻す">↺</button>
       <button class="cam-view-close" onclick="closeCameraView()">✕</button>
     </div>
   </div>
@@ -1445,6 +1449,8 @@ function rotateCamKanban(){
   applyKanbanPos();
   // 4:3枠の寸法を計算
   fitCamFrame();
+  // 電子小黒板のサイズ・自由配置を反映
+  applyKanbanPreview();
 }
 function fitCamFrame(){
   var wrap=document.querySelector('.cam-video-wrap');
@@ -1472,6 +1478,100 @@ window.addEventListener('resize',function(){if(document.getElementById('cam-view
 window.addEventListener('orientationchange',function(){if(document.getElementById('cam-view').className==='on')setTimeout(fitCamFrame,300);});
 window.currentKanbanPos='bl'; // 看板は常に左下
 window.currentHandedness=localStorage.getItem('rh_handedness')||'right'; // 利き手：right(基本)/left
+// 電子小黒板：サイズ倍率と自由配置（正規化座標）
+window.kanbanScale=parseFloat(localStorage.getItem('rh_kanban_scale'))||1;
+(function(){
+  var nx=localStorage.getItem('rh_kanban_nx'),ny=localStorage.getItem('rh_kanban_ny');
+  window.kanbanNX=(nx===null||nx==='')?null:parseFloat(nx);
+  window.kanbanNY=(ny===null||ny==='')?null:parseFloat(ny);
+})();
+var KANBAN_SCALES=[0.8,1,1.25];
+function cycleKanbanScale(){
+  var idx=KANBAN_SCALES.indexOf(window.kanbanScale);
+  idx=(idx+1)%KANBAN_SCALES.length;
+  window.kanbanScale=KANBAN_SCALES[idx];
+  localStorage.setItem('rh_kanban_scale',window.kanbanScale);
+  var lbl=idx===0?'小':idx===1?'中':'大';
+  var b=document.getElementById('cam-size-btn');if(b)b.textContent='🔲 '+lbl;
+  applyKanbanPreview();
+  showToast('看板サイズ：'+lbl);
+}
+function resetKanbanPos(){
+  window.kanbanNX=null;window.kanbanNY=null;
+  localStorage.removeItem('rh_kanban_nx');localStorage.removeItem('rh_kanban_ny');
+  applyKanbanPreview();
+  showToast('看板の位置を左下に戻しました');
+}
+function applyKanbanPreview(){
+  var k=document.querySelector('.cam-kanban');
+  var frame=document.querySelector('.cam-frame');
+  if(!k||!frame)return;
+  var SC=window.kanbanScale||1;
+  k.style.transform='scale('+SC+')';
+  k.style.transformOrigin='top left';
+  // サイズボタンのラベル同期
+  var idx=KANBAN_SCALES.indexOf(SC);var b=document.getElementById('cam-size-btn');
+  if(b)b.textContent='🔲 '+(idx===0?'小':idx===2?'大':'中');
+  var fW=frame.clientWidth,fH=frame.clientHeight;
+  if(!fW||!fH)return;
+  var w=k.offsetWidth*SC,h=k.offsetHeight*SC;
+  var left,top;
+  if(window.kanbanNX!=null&&window.kanbanNY!=null){
+    left=window.kanbanNX*fW;top=window.kanbanNY*fH;
+  } else {
+    left=fW*0.02;top=fH-h-fH*0.02; // 既定：左下
+  }
+  left=Math.max(0,Math.min(left,fW-w));
+  top=Math.max(0,Math.min(top,fH-h));
+  k.classList.remove('pos-bl','pos-br','pos-tl','pos-tr');
+  k.style.left=left+'px';k.style.top=top+'px';k.style.right='auto';k.style.bottom='auto';
+}
+// 看板ドラッグ移動（プレビュー）
+(function(){
+  var dragging=false,sx=0,sy=0,startLeft=0,startTop=0;
+  function pt(e){return e.touches&&e.touches[0]?e.touches[0]:e;}
+  function down(e){
+    var k=document.querySelector('.cam-kanban');if(!k)return;
+    dragging=true;var p=pt(e);sx=p.clientX;sy=p.clientY;
+    startLeft=parseFloat(k.style.left)||0;startTop=parseFloat(k.style.top)||0;
+    k.style.opacity='0.85';
+    if(e.cancelable)e.preventDefault();
+  }
+  function move(e){
+    if(!dragging)return;
+    var k=document.querySelector('.cam-kanban');var frame=document.querySelector('.cam-frame');
+    if(!k||!frame)return;
+    var p=pt(e);var SC=window.kanbanScale||1;
+    var fW=frame.clientWidth,fH=frame.clientHeight;
+    var w=k.offsetWidth*SC,h=k.offsetHeight*SC;
+    var left=Math.max(0,Math.min(startLeft+(p.clientX-sx),fW-w));
+    var top=Math.max(0,Math.min(startTop+(p.clientY-sy),fH-h));
+    k.style.left=left+'px';k.style.top=top+'px';
+    if(e.cancelable)e.preventDefault();
+  }
+  function up(){
+    if(!dragging)return;dragging=false;
+    var k=document.querySelector('.cam-kanban');var frame=document.querySelector('.cam-frame');
+    if(!k||!frame)return;
+    k.style.opacity='';
+    var fW=frame.clientWidth,fH=frame.clientHeight;
+    if(fW&&fH){
+      window.kanbanNX=(parseFloat(k.style.left)||0)/fW;
+      window.kanbanNY=(parseFloat(k.style.top)||0)/fH;
+      localStorage.setItem('rh_kanban_nx',window.kanbanNX);
+      localStorage.setItem('rh_kanban_ny',window.kanbanNY);
+    }
+  }
+  window.addEventListener('DOMContentLoaded',function(){
+    var k=document.querySelector('.cam-kanban');if(!k)return;
+    k.addEventListener('touchstart',down,{passive:false});
+    k.addEventListener('touchmove',move,{passive:false});
+    k.addEventListener('touchend',up);
+    k.addEventListener('mousedown',down);
+    window.addEventListener('mousemove',move);
+    window.addEventListener('mouseup',up);
+  });
+})();
 function applyKanbanPos(){
   var k=document.querySelector('.cam-kanban');
   if(!k)return;
@@ -1782,8 +1882,10 @@ function drawKanban(ctx,W,H,kanbanData,solidBg){
     ];
   }
   // 出来形数値は作業工程フィールドに統合済みのため別フィールド不要
-  var maxBw=isLandscape?Math.round(W*0.50):Math.round(W*0.72);
-  var minBw=isLandscape?Math.round(H*0.60):Math.round(W*0.62);
+  // 看板サイズ倍率（小0.8 / 中1.0 / 大1.25）
+  var SC=(kanbanData&&kanbanData.scale)||window.kanbanScale||1;
+  var maxBw=Math.round((isLandscape?W*0.50:W*0.72)*SC);
+  var minBw=Math.round((isLandscape?H*0.60:W*0.62)*SC);
   // まず最小幅でフォントサイズを決定
   var lfs=Math.max(5,Math.round(minBw*0.028));
   var vfs=Math.max(6,Math.round(minBw*0.038));
@@ -1803,13 +1905,22 @@ function drawKanban(ctx,W,H,kanbanData,solidBg){
   pd=Math.round(bw*0.05);
   var rowH=lfs+vfs+Math.round(bw*0.022);
   var bh=rowH*fields.length+Math.round(bw*0.035);
-  // 看板位置（kanbanDataに保存）：bl(デフォルト), br, tl, tr
-  var pos=(kanbanData&&kanbanData.pos)||'bl';
+  // 看板位置：自由配置(nx,ny 正規化座標)があれば優先、無ければ従来の四隅(pos)
+  var nx=(kanbanData&&kanbanData.nx!=null)?kanbanData.nx:(window.kanbanNX!=null?window.kanbanNX:null);
+  var ny=(kanbanData&&kanbanData.ny!=null)?kanbanData.ny:(window.kanbanNY!=null?window.kanbanNY:null);
   var bx,by;
-  if(pos==='br'){bx=W-bw-mg;by=H-bh-mg;}
-  else if(pos==='tl'){bx=mg;by=mg;}
-  else if(pos==='tr'){bx=W-bw-mg;by=mg;}
-  else {bx=mg;by=H-bh-mg;} // bl デフォルト
+  if(nx!=null&&ny!=null){
+    bx=Math.round(nx*W);by=Math.round(ny*H);
+  } else {
+    var pos=(kanbanData&&kanbanData.pos)||'bl';
+    if(pos==='br'){bx=W-bw-mg;by=H-bh-mg;}
+    else if(pos==='tl'){bx=mg;by=mg;}
+    else if(pos==='tr'){bx=W-bw-mg;by=mg;}
+    else {bx=mg;by=H-bh-mg;} // bl デフォルト
+  }
+  // 枠内に収める
+  bx=Math.max(mg,Math.min(bx,W-bw-mg));
+  by=Math.max(mg,Math.min(by,H-bh-mg));
   var rad=Math.round(bw*0.02);
   // 背景（solidBg=trueの場合は完全不透明で古い看板を覆い隠す）
   if(solidBg){
@@ -1881,7 +1992,10 @@ function gatherKanbanData(){
     mpName:measurementPoints[currentMP].name,
     akuGyo:akuGyo,
     date:getDateStr(),
-    pos:window.currentKanbanPos||'bl'
+    pos:window.currentKanbanPos||'bl',
+    scale:window.kanbanScale||1,
+    nx:(window.kanbanNX!=null?window.kanbanNX:null),
+    ny:(window.kanbanNY!=null?window.kanbanNY:null)
   };
 }
 function wrapText(ctx,text,maxW){
