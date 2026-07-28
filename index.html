@@ -32,7 +32,12 @@ body{font-family:'Noto Sans JP','メイリオ',Meiryo,'Hiragino Kaku Gothic ProN
 .info-input{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;font-size:11px;font-family:inherit;padding:6px 10px;outline:none;transition:border-color .15s}
 .info-input::placeholder{color:rgba(255,255,255,.35)}
 .info-input:focus{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.12)}
-.mp-bar{background:#0C204A;border-bottom:1px solid rgba(255,255,255,.06);padding:8px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:120;transition:top 0.2s}
+.mp-bar{background:#0C204A;border-bottom:1px solid rgba(255,255,255,.06);padding:6px 14px 8px;display:flex;flex-direction:column;align-items:stretch;gap:6px;position:sticky;top:0;z-index:120;transition:top 0.2s}
+.mp-row{display:flex;align-items:center;gap:8px}
+.mp-koji{display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer}
+.mp-koji-icon{font-size:12px;flex-shrink:0}
+.mp-koji-text{color:#fff;font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em}
+.mp-koji-text.empty{color:rgba(255,255,255,.4);font-weight:600}
 .mp-title{color:rgba(255,255,255,.55);font-size:10px;font-weight:700;white-space:nowrap;letter-spacing:.05em;flex-shrink:0}
 .mp-scroll{flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:2px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .mp-scroll::-webkit-scrollbar{display:none}
@@ -445,11 +450,14 @@ input[type=file]{display:none}
   </div>
 </div>
 <div class="mp-bar" id="mp-bar">
-  <span class="mp-title" id="mp-title">測点</span>
-  <div class="mp-scroll" id="mp-scroll"></div>
-  <div class="mp-actions">
-    <button class="mp-add" onclick="mpAdd()">＋追加</button>
-    <button class="mp-del" onclick="mpDel()">削除</button>
+  <div class="mp-koji" id="mp-koji-display" onclick="focusKoji()"><span class="mp-koji-icon">🏗</span><span class="mp-koji-text" id="mp-koji-text">工事名未入力</span></div>
+  <div class="mp-row">
+    <span class="mp-title" id="mp-title">測点</span>
+    <div class="mp-scroll" id="mp-scroll"></div>
+    <div class="mp-actions">
+      <button class="mp-add" onclick="mpAdd()">＋追加</button>
+      <button class="mp-del" onclick="mpDel()">削除</button>
+    </div>
   </div>
 </div>
 <div id="nav-dots-fixed" class="nav-dots-fixed"></div>
@@ -1283,7 +1291,20 @@ function saveMpEdit(){
   measurementPoints[currentMP].name=v;
   renderMpBar();saveLS();closeMpEdit();
 }
+function updateKojiDisplay(){
+  var el=document.getElementById('mp-koji-text');
+  if(!el)return;
+  var inp=document.getElementById('inp-koji');
+  var v=inp?(inp.value||'').trim():'';
+  if(v){el.textContent=v;el.classList.remove('empty');}
+  else{el.textContent='工事名未入力（タップで入力）';el.classList.add('empty');}
+}
+function focusKoji(){
+  var inp=document.getElementById('inp-koji');
+  if(inp){window.scrollTo({top:0,behavior:'smooth'});setTimeout(function(){inp.focus();},250);}
+}
 function renderMpBar(){
+  updateKojiDisplay();
   var t=document.getElementById('mp-title');
   if(t)t.textContent=curMpLabel();
   var sc=document.getElementById('mp-scroll');
@@ -4021,7 +4042,7 @@ try{var _ic=document.getElementById('app-icon');var _bl=document.getElementById(
 document.getElementById('photo-modal').addEventListener('click',function(e){if(e.target===e.currentTarget)closeModal();});
 document.getElementById('kanban-edit-overlay').addEventListener('click',function(e){if(e.target===e.currentTarget)closeKanbanEdit();});
 ['inp-koji','inp-place','inp-company'].forEach(function(id){
-  document.getElementById(id).addEventListener('input',function(){saveLS();updateCamKanban();});
+  document.getElementById(id).addEventListener('input',function(){saveLS();updateCamKanban();if(id==='inp-koji')updateKojiDisplay();});
 });
 
 // Androidでのドラッグ並び替え対策：非passiveのtouchmoveをdocumentに登録
