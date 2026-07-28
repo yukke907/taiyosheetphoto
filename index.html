@@ -358,6 +358,11 @@ input[type=file]{display:none}
 @media print {.no-print-drag{cursor:default !important}.led-row.dragging-row{box-shadow:none !important;background:transparent !important;opacity:1 !important;transform:none !important}.led-row.drop-above::before,.led-row.drop-below::after{display:none !important}}
 .led-row-empty{height:85mm;margin-bottom:3mm}
 .led-row:last-child{margin-bottom:0}
+/* PDFテンプレ：1ページの写真枚数でレイアウト切替 */
+.led-tpl-select{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:3px 6px;border-radius:5px;font-size:10px;font-weight:700;font-family:inherit;cursor:pointer}
+.led-tpl-select option{color:#111}
+.led-wrap.tpl-2 .led-row,.led-wrap.tpl-2 .led-row-empty,.led-wrap.tpl-2 .led-photo{height:130mm}
+.led-wrap.tpl-1 .led-row,.led-wrap.tpl-1 .led-row-empty,.led-wrap.tpl-1 .led-photo{height:250mm}
 .led-photo{position:relative;flex:0 0 66%;overflow:hidden;background:#fff;height:85mm}
 .led-photo img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;object-position:center center;display:block}
 .led-photo-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:12px}
@@ -417,6 +422,10 @@ input[type=file]{display:none}
   .led-photo{position:relative !important;flex:0 0 66% !important;height:85mm !important;max-height:85mm !important;border-right:1px solid #aaa !important;overflow:hidden;background:#fff}
   .led-photo img{position:absolute !important;top:0 !important;left:0 !important;width:100% !important;height:100% !important;object-fit:contain !important;object-position:center center !important;display:block !important;margin:0 !important}
   .led-caption{flex:1 !important;height:85mm !important;max-height:85mm !important;border-left:none !important}
+  .led-wrap.tpl-2 .led-row,.led-wrap.tpl-2 .led-row-empty{height:130mm !important;min-height:130mm !important;max-height:130mm !important}
+  .led-wrap.tpl-2 .led-photo,.led-wrap.tpl-2 .led-caption{height:130mm !important;max-height:130mm !important}
+  .led-wrap.tpl-1 .led-row,.led-wrap.tpl-1 .led-row-empty{height:250mm !important;min-height:250mm !important;max-height:250mm !important}
+  .led-wrap.tpl-1 .led-photo,.led-wrap.tpl-1 .led-caption{height:250mm !important;max-height:250mm !important}
   /* 印刷時：編集UIの装飾を全て消す */
   .led-cap-editable,.led-cap-editable:focus{outline:none !important;background:transparent !important;border:none !important}
   .led-cover-field-value[contenteditable],.led-cover-field-value[contenteditable]:focus{outline:none !important;background:transparent !important}
@@ -614,6 +623,14 @@ input[type=file]{display:none}
       <button class="led-sort-btn led-zoom-btn" onclick="ledgerZoom(0.1)">🔍＋</button>
       <button class="led-print-btn" onclick="printLedger()">🖨️ PDF出力</button>
       <button class="led-close" onclick="closeLedger()">✕</button>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end">
+      <span style="font-size:10px;color:rgba(255,255,255,.7);font-weight:700">レイアウト</span>
+      <select id="led-tpl-select" class="led-tpl-select" onchange="setLedgerTpl(this.value)">
+        <option value="3">3枚／ページ（標準）</option>
+        <option value="2">2枚／ページ（大きめ）</option>
+        <option value="1">1枚／ページ（特大）</option>
+      </select>
     </div>
   </div>
   <div id="led-thumb-area" class="no-print">
@@ -2696,6 +2713,8 @@ function setClientVisible(show){
   localStorage.setItem(pKey('rh_show_client'),show?'true':'false');
   renderLedger();
 }
+function curLedgerTpl(){var v=localStorage.getItem(pKey('rh_ledger_tpl'));return (v==='1'||v==='2')?v:'3';}
+function setLedgerTpl(v){localStorage.setItem(pKey('rh_ledger_tpl'),(v==='1'||v==='2')?v:'3');renderLedger();}
 function renderLedger(){
   var koji=document.getElementById('inp-koji').value||'（未入力）';
   var place=document.getElementById('inp-place').value||'';
@@ -2748,8 +2767,13 @@ function renderLedger(){
   }
   html+='</div>';
   html+='</div>';
-  // 台帳ページ
-  var perPage=3,pages=Math.ceil(ledgerPhotos.length/perPage);
+  // 台帳ページ（テンプレで1ページ枚数を切替）
+  var tpl=curLedgerTpl();
+  var tplSel=document.getElementById('led-tpl-select');
+  if(tplSel)tplSel.value=tpl;
+  el.classList.remove('tpl-1','tpl-2','tpl-3');
+  el.classList.add('tpl-'+tpl);
+  var perPage=parseInt(tpl,10)||3,pages=Math.ceil(ledgerPhotos.length/perPage);
   for(var p=0;p<pages;p++){
     var pg=ledgerPhotos.slice(p*perPage,(p+1)*perPage);
     html+='<div class="led-page">';
