@@ -3678,6 +3678,13 @@ function showSettings(){
 function closeSettings(){document.getElementById('settings-overlay').style.display='none';}
 
 /* ===== エクスポート/インポート ===== */
+function downloadBlob(blob,fname){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 function exportData(){
   // フィルタなしで現在の工事の写真を全取得
   if(!db){
@@ -3710,17 +3717,22 @@ function exportData(){
       try{
         var json=JSON.stringify(data);
         var blob=new Blob([json],{type:'application/json'});
-        var url=URL.createObjectURL(blob);
-        var a=document.createElement('a');
         var kojiName=data.koji||'施工看板データ';
-        a.href=url;
-        a.download=kojiName+'_'+new Date().toISOString().slice(0,10)+'.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        closeSettings();
-        showToast('エクスポート完了！'+photos.length+'枚の写真を書き出しました');
+        var fname=kojiName+'_'+new Date().toISOString().slice(0,10)+'.json';
+        var file=null;
+        try{file=new File([blob],fname,{type:'application/json'});}catch(e){}
+        // 共有シートが使えれば共有（LINE/AirDrop/メール等で別端末・別担当へ直接送れる）
+        if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+          navigator.share({files:[file],title:kojiName,text:'施工看板データ（受信側は「データ受信」から読み込んでください）'})
+            .then(function(){closeSettings();showToast('共有しました（'+photos.length+'枚）');})
+            .catch(function(err){
+              if(err&&err.name==='AbortError')return; // ユーザーがキャンセル
+              downloadBlob(blob,fname);closeSettings();showToast('ファイルに保存しました（'+photos.length+'枚）');
+            });
+        } else {
+          downloadBlob(blob,fname);closeSettings();
+          showToast('エクスポート完了！'+photos.length+'枚の写真を書き出しました');
+        }
       }catch(err){
         showToast('エラー：'+err.message);
       }
