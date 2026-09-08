@@ -284,6 +284,41 @@ body{font-family:'Noto Sans JP','メイリオ',Meiryo,'Hiragino Kaku Gothic ProN
 /* 撮影/アルバム モード切替（下部ナビの1ボタン） */
 .nav-mode.lib{background:#F4A33A !important;border-color:#C97A1E !important}
 .nav-mode.lib .nav-label{color:#0A1A38}
+/* アルバム一括取り込み入口ボタン */
+.bulk-entry{display:flex;align-items:center;justify-content:center;gap:6px;width:calc(100% - 24px);margin:10px 12px 0;height:44px;border:none;border-radius:12px;background:#F4A33A;color:#0A1A38;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.bulk-entry:active{background:#dd8f2c}
+/* 一括振り分け画面 */
+.ba-overlay{position:fixed;inset:0;background:#eef2f7;z-index:9000;display:none;flex-direction:column}
+.ba-overlay.on{display:flex}
+.ba-top{background:#081634;color:#fff;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ba-title{font-size:14px;font-weight:800;flex:1;min-width:0}
+.ba-top .ba-add{background:#F4A33A;border:none;color:#0A1A38;height:38px;padding:0 12px;border-radius:9px;font-size:12px;font-weight:800;font-family:inherit;flex-shrink:0}
+.ba-top .ba-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;flex-shrink:0}
+.ba-proc{display:flex;gap:5px;overflow-x:auto;padding:8px 12px;background:#0C204A;flex-shrink:0;scrollbar-width:none}
+.ba-proc::-webkit-scrollbar{display:none}
+.ba-proc button{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);font-size:13px;font-weight:800;font-family:inherit}
+.ba-proc button.on{background:#F4A33A;border-color:#fff;color:#0A1A38}
+.ba-mp{display:flex;gap:6px;overflow-x:auto;padding:8px 12px;background:#0C204A;border-top:1px solid rgba(255,255,255,.08);flex-shrink:0;align-items:center;scrollbar-width:none}
+.ba-mp::-webkit-scrollbar{display:none}
+.ba-mp .ba-mp-lbl{color:rgba(255,255,255,.55);font-size:10px;font-weight:700;flex-shrink:0}
+.ba-mp button{flex-shrink:0;background:rgba(255,255,255,.1);border:1.5px solid transparent;color:rgba(255,255,255,.8);height:32px;padding:0 12px;border-radius:16px;font-size:12px;font-weight:700;font-family:inherit;white-space:nowrap}
+.ba-mp button.on{background:#F4A33A;border-color:#fff;color:#0A1A38;font-weight:800}
+.ba-items{flex:1;overflow-y:auto;padding:8px 12px}
+.ba-hint{font-size:11px;color:#66748a;background:#e2e9f2;border-radius:8px;padding:7px 10px;margin-bottom:8px;line-height:1.5}
+.ba-item{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #dde4ee;border-radius:10px;padding:11px 12px;margin-bottom:7px;cursor:pointer}
+.ba-item:active{background:#f4f7fb}
+.ba-item.dim{opacity:.5}
+.ba-item .ba-item-name{flex:1;font-size:13px;font-weight:700;color:#1a2a3a}
+.ba-item .ba-item-cnt{font-size:11px;font-weight:800;color:#66748a;background:#eef1f6;border-radius:11px;padding:2px 9px;flex-shrink:0}
+.ba-item .ba-item-cnt.has{background:#FCC383;color:#0A1A38}
+.ba-pool-wrap{flex-shrink:0;background:#fff;border-top:1px solid #dde4ee;max-height:42vh;display:flex;flex-direction:column}
+.ba-pool-head{font-size:12px;font-weight:800;color:#0C204A;padding:8px 12px 4px;flex-shrink:0}
+.ba-pool{overflow-y:auto;padding:0 10px 10px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ba-pool-empty{padding:16px;text-align:center;color:#9aa6b6;font-size:12px}
+.ba-cell{position:relative;cursor:pointer}
+.ba-cell img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:3px solid transparent;display:block}
+.ba-cell.sel img{border-color:#F4A33A}
+.ba-cell.sel::after{content:'✓';position:absolute;top:3px;right:3px;background:#F4A33A;color:#0A1A38;font-size:12px;font-weight:900;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
 .toast.show{opacity:1}
 input[type=file]{display:none}
 #guide-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;align-items:flex-end;justify-content:center}
@@ -513,6 +548,22 @@ input[type=file]{display:none}
 </div>
 <input type="file" id="cam-input" accept="image/*" capture="environment">
 <input type="file" id="lib-input" accept="image/*" multiple>
+<input type="file" id="ba-input" accept="image/*" multiple style="position:absolute;left:-9999px">
+<div id="bulk-assign" class="ba-overlay">
+  <div class="ba-top">
+    <span class="ba-title">🖼️ 写真の振り分け</span>
+    <button class="ba-add" onclick="baPick()">＋写真を追加</button>
+    <button class="ba-close" onclick="closeBulkAssign()">✕</button>
+  </div>
+  <div class="ba-proc" id="ba-proc"></div>
+  <div class="ba-mp" id="ba-mp"></div>
+  <div class="ba-items" id="ba-items"></div>
+  <div class="ba-pool-wrap">
+    <div class="ba-pool-head" id="ba-pool-head">未振り分け</div>
+    <div class="ba-pool-empty" id="ba-pool-empty" style="display:none">「＋写真を追加」で写真をまとめて取り込んでください</div>
+    <div class="ba-pool" id="ba-pool"></div>
+  </div>
+</div>
 <canvas id="comp-canvas" style="display:none"></canvas>
 <div id="loading"><div class="ld-spin"></div><div class="ld-txt">看板を合成中…</div></div>
 <div id="pv">
@@ -4220,6 +4271,7 @@ function render(){
     '<div class="progress-bar-wrap"><div class="progress-bar" style="width:'+pct+'%"></div></div>'+
     '<div class="progress-text">'+ck+' / '+tot+' 完了（'+pct+'%）</div></div>'+
     banner+
+    (window.shootMode==='lib'?'<button class="bulk-entry" onclick="openBulkAssign()">🖼️ まとめて取り込み・振り分け</button>':'')+
     '<div class="items-list">'+items+'</div>'+
     
     '<div class="bottom-nav">'+
@@ -4300,6 +4352,101 @@ initDB(function(){
     }
   })});
 });
+
+/* ===== アルバム一括取り込み・振り分け ===== */
+window._baPool=[];      // [{id,file,url}]
+window._baSel={};       // 選択中プールID
+var _baNextId=1;
+function openBulkAssign(){
+  document.getElementById('bulk-assign').classList.add('on');
+  document.body.style.overflow='hidden';
+  renderBulkAssign();
+  if(!window._baPool.length) baPick();
+}
+function closeBulkAssign(){
+  document.getElementById('bulk-assign').classList.remove('on');
+  document.body.style.overflow='';
+}
+function baPick(){var i=document.getElementById('ba-input');i.value='';i.click();}
+document.getElementById('ba-input').addEventListener('change',function(e){
+  var files=Array.prototype.slice.call(e.target.files||[]);
+  files.forEach(function(f){
+    var url;try{url=URL.createObjectURL(f);}catch(_){url='';}
+    window._baPool.push({id:_baNextId++,file:f,url:url});
+  });
+  renderBulkAssign();
+});
+function baToggleSel(id){
+  if(window._baSel[id])delete window._baSel[id];else window._baSel[id]=true;
+  renderBulkAssign();
+}
+function baGoProc(i){currentProc=i;renderBulkAssign();}
+function baGoMp(i){currentMP=i;renderMpBar();renderBulkAssign();}
+function baAssignTo(ii){
+  var ids=Object.keys(window._baSel).map(Number);
+  if(!ids.length){showToast('先に写真を選んでください');return;}
+  var pi=currentProc;
+  var picks=window._baPool.filter(function(p){return window._baSel[p.id];});
+  var loading=document.getElementById('loading');var txt=loading.querySelector('.ld-txt');var orig=txt?txt.textContent:'';
+  loading.className='on';
+  var i=0,added=0;
+  function next(){
+    if(txt)txt.textContent='振り分け中… '+i+'/'+picks.length;
+    if(i>=picks.length){
+      loading.className='';if(txt)txt.textContent=orig;
+      // 割り当て済みをプールから除去
+      picks.forEach(function(p){try{if(p.url)URL.revokeObjectURL(p.url);}catch(_){}});
+      var doneIds={};picks.forEach(function(p){doneIds[p.id]=true;});
+      window._baPool=window._baPool.filter(function(p){return !doneIds[p.id];});
+      window._baSel={};
+      saveLS();render();renderBulkAssign();
+      showToast(added+'枚を「'+getItemName(pi,ii)+'」に追加しました');
+      return;
+    }
+    var p=picks[i++];
+    var savedCam=camTarget;camTarget={pi:pi,ii:ii,savedToGallery:false};
+    buildComposite(p.file,function(err,res){
+      if(err){camTarget=savedCam;next();return;}
+      dbAdd(currentMP,pi,ii,res.composite,res.original,res.kanbanData,function(id){
+        var s=getState()[pi][ii];
+        s.photos.push({id:id||Date.now(),dataUrl:res.composite,originalUrl:res.original,kanbanData:res.kanbanData});
+        if(!s.checked){s.checked=true;s.date=Date.now();}
+        camTarget=savedCam;added++;next();
+      });
+    });
+  }
+  next();
+}
+function renderBulkAssign(){
+  if(!document.getElementById('bulk-assign').classList.contains('on'))return;
+  var proc=PROCESSES[currentProc];
+  // 工程ドット
+  var pd='';for(var i=0;i<PROCESSES.length;i++){pd+='<button class="'+(i===currentProc?'on':'')+'" onclick="baGoProc('+i+')">'+(i+1)+'</button>';}
+  document.getElementById('ba-proc').innerHTML=pd;
+  // 測点チップ
+  var mp='<span class="ba-mp-lbl">'+curMpLabel()+'</span>';
+  for(var m=0;m<measurementPoints.length;m++){mp+='<button class="'+(m===currentMP?'on':'')+'" onclick="baGoMp('+m+')">'+escapeHtmlSimple(measurementPoints[m].name)+'</button>';}
+  document.getElementById('ba-mp').innerHTML=mp;
+  // 項目行
+  var st=getState();var selN=Object.keys(window._baSel).length;
+  var ih='<div class="ba-hint">① 下の写真を選ぶ　② この工程('+(currentProc+1)+')の項目をタップで振り分け（測点：'+escapeHtmlSimple(measurementPoints[currentMP].name)+'）</div>';
+  for(var ii=0;ii<proc.items.length;ii++){
+    var cnt=st[currentProc][ii].photos.length;
+    ih+='<div class="ba-item'+(selN?'':' dim')+'" onclick="baAssignTo('+ii+')">'+
+      '<span class="ba-item-name">'+escapeHtmlSimple(getItemName(currentProc,ii))+'</span>'+
+      '<span class="ba-item-cnt'+(cnt?' has':'')+'">'+cnt+'枚</span></div>';
+  }
+  document.getElementById('ba-items').innerHTML=ih;
+  // プール
+  document.getElementById('ba-pool-head').textContent='未振り分け '+window._baPool.length+'枚'+(selN?'（'+selN+'枚選択中）':'');
+  var pool=document.getElementById('ba-pool');
+  if(!window._baPool.length){pool.style.display='none';document.getElementById('ba-pool-empty').style.display='';}
+  else{
+    document.getElementById('ba-pool-empty').style.display='none';pool.style.display='grid';
+    var ph='';window._baPool.forEach(function(p){ph+='<div class="ba-cell'+(window._baSel[p.id]?' sel':'')+'" onclick="baToggleSel('+p.id+')"><img src="'+p.url+'"></div>';});
+    pool.innerHTML=ph;
+  }
+}
 </script>
 </body>
 </html>
