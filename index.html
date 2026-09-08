@@ -4521,17 +4521,61 @@ function ieMoveItem(i,dir){var p=ieProc,j=i+dir,pr=PROCESSES[p];if(j<0||j>=pr.it
 function ieAddProc(){var t=prompt('追加する工程(タブ)名');if(t===null)return;t=t.trim();if(!t)return;ensureEditableProcesses();PROCESSES.push({no:'工程'+_circled(PROCESSES.length+1),title:t,category:'',badge:'badge-civil',sub:'',items:['写真1'],stars:[false],footer:''});measurementPoints.forEach(function(mp){mp.state.push([{checked:false,date:null,photos:[],dim:'',customName:null}]);});ieProc=PROCESSES.length-1;saveProcesses();saveLS();renderItemEdit();render();}
 function ieDeleteProc(){if(PROCESSES.length<=1){showToast('工程は1つ以上必要です');return;}var p=ieProc;if(!confirm('工程「'+(PROCESSES[p].title||'')+'」を削除しますか？\nこの工程の写真も削除されます。'))return;ensureEditableProcesses();PROCESSES.splice(p,1);PROCESSES.forEach(function(pp,idx){pp.no='工程'+_circled(idx+1);});measurementPoints.forEach(function(mp){mp.state.splice(p,1);});if(currentProc>=PROCESSES.length)currentProc=PROCESSES.length-1;ieProc=Math.min(p,PROCESSES.length-1);saveProcesses();saveLS();idbRewritePhotos(function(v){if(v.procIndex===p)return true;if(v.procIndex>p){v.procIndex--;if(PROCESSES[v.procIndex]){v.procNo=PROCESSES[v.procIndex].no;v.procTitle=PROCESSES[v.procIndex].title;}}return false;},function(){reloadPhotos(function(){renderItemEdit();});});}
 function ieSaveTemplate(){var n=prompt('テンプレ名を入力');if(n===null)return;n=n.trim();if(!n)return;var t=getTemplates();t.push({name:n,procs:_clone(PROCESSES)});saveTemplates(t);showToast('テンプレ「'+n+'」を保存しました');}
-function applyTemplate(procs,label){if(!confirm('「'+label+'」の項目構成をこの工事に適用します。\n\n※すでに撮影した写真はギャラリーに残りますが、項目の構成が変わるため一覧での表示位置がずれる場合があります。\n続けますか？'))return;ensureEditableProcesses();PROCESSES=normalizeProcesses(_clone(procs));measurementPoints.forEach(function(mp){mp.state=initMpState();});currentProc=0;ieProc=0;saveProcesses();saveLS();reloadPhotos(function(){renderMpBar();renderItemEdit();showToast('項目を適用しました');});}
+function materialInspectionProc(){
+  var mats=['FEP100×107m','コンクリートトラフ×52基','G70×1本','配管付属品','配管支持材','低圧ケーブルCVD100×11m','低圧ケーブルCVD250×122m','プルボックス×1個','漏電ブレーカー×1個','鋼管柱×1本','開閉器盤×1面'];
+  return {no:'',title:'材料検査',category:'電気工事',badge:'badge-elec',sub:'材料ごとの検査写真',items:mats,stars:mats.map(function(){return false;}),footer:''};
+}
+function applyTemplate(procs,label,mode){
+  mode=mode||'replace';
+  if(mode==='append'){
+    if(!confirm('「'+label+'」を今の項目に追加します（工程を末尾に足します）。よろしいですか？'))return;
+    ensureEditableProcesses();
+    var add=normalizeProcesses(_clone(procs));
+    add.forEach(function(np){
+      PROCESSES.push(np);
+      measurementPoints.forEach(function(mp){mp.state.push(np.items.map(function(_,i){return {checked:false,date:null,photos:[],dim:'',customName:(np.customIdx===i?'':null)};}));});
+    });
+    PROCESSES.forEach(function(pp,idx){pp.no='工程'+_circled(idx+1);});
+    ieProc=Math.max(0,PROCESSES.length-add.length);
+    saveProcesses();saveLS();render();renderMpBar();renderItemEdit();
+    showToast('「'+label+'」を追加しました');
+    return;
+  }
+  if(!confirm('「'+label+'」の項目構成でこの工事を置き換えます。\n\n※撮影済みの写真はギャラリーに残りますが、一覧での表示位置がずれる場合があります。\n続けますか？'))return;
+  ensureEditableProcesses();PROCESSES=normalizeProcesses(_clone(procs));measurementPoints.forEach(function(mp){mp.state=initMpState();});currentProc=0;ieProc=0;saveProcesses();saveLS();reloadPhotos(function(){renderMpBar();renderItemEdit();showToast('項目を置き換えました');});
+}
 function ieApplyTemplateMenu(){
-  var tpls=[{name:'標準（RH施工）',procs:DEFAULT_PROCESSES},{name:'電気・幹線配線（材料検査＋前/中/後）',procs:electricTemplate()}];
+  var tpls=[
+    {name:'材料検査（電気・材料名のみ）',procs:[materialInspectionProc()]},
+    {name:'電気・幹線配線（材料検査＋前/中/後）',procs:electricTemplate()},
+    {name:'標準（RH施工）',procs:DEFAULT_PROCESSES}
+  ];
   getTemplates().forEach(function(t){tpls.push({name:t.name+'（保存済み）',procs:t.procs});});
   var ov=document.createElement('div');ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:12000;display:flex;align-items:center;justify-content:center;padding:20px';
-  var inner='<div style="background:#fff;border-radius:14px;padding:16px;max-width:360px;width:100%;max-height:80vh;overflow:auto"><div style="font-size:14px;font-weight:800;margin-bottom:10px">テンプレを適用</div>';
-  tpls.forEach(function(t,i){inner+='<button data-i="'+i+'" style="display:block;width:100%;text-align:left;background:#f4f7fb;border:1px solid #dde4ee;border-radius:10px;padding:12px;margin-bottom:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">'+escapeHtmlSimple(t.name)+'</button>';});
-  inner+='<button id="ie-tpl-cancel" style="width:100%;height:40px;border:none;background:none;color:#666;font-weight:700;font-family:inherit;cursor:pointer">キャンセル</button></div>';
-  ov.innerHTML=inner;ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});document.body.appendChild(ov);
-  ov.querySelector('#ie-tpl-cancel').onclick=function(){ov.remove();};
-  ov.querySelectorAll('button[data-i]').forEach(function(bt){bt.onclick=function(){var t=tpls[+bt.getAttribute('data-i')];ov.remove();applyTemplate(t.procs,t.name);};});
+  var BS='display:block;width:100%;text-align:left;background:#f4f7fb;border:1px solid #dde4ee;border-radius:10px;padding:12px;margin-bottom:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer';
+  var CB='width:100%;height:40px;border:none;background:none;color:#666;font-weight:700;font-family:inherit;cursor:pointer';
+  function box(h){return '<div style="background:#fff;border-radius:14px;padding:16px;max-width:360px;width:100%;max-height:80vh;overflow:auto">'+h+'</div>';}
+  function showList(){
+    var h='<div style="font-size:14px;font-weight:800;margin-bottom:10px">テンプレを選ぶ</div>';
+    tpls.forEach(function(t,i){h+='<button data-i="'+i+'" style="'+BS+'">'+escapeHtmlSimple(t.name)+'</button>';});
+    h+='<button data-cancel style="'+CB+'">キャンセル</button>';
+    ov.innerHTML=box(h);
+    ov.querySelectorAll('button[data-i]').forEach(function(bt){bt.onclick=function(){showMode(tpls[+bt.getAttribute('data-i')]);};});
+    ov.querySelector('[data-cancel]').onclick=function(){ov.remove();};
+  }
+  function showMode(t){
+    var h='<div style="font-size:14px;font-weight:800;margin-bottom:2px">'+escapeHtmlSimple(t.name)+'</div>'+
+      '<div style="font-size:11px;color:#667;margin-bottom:12px">どう反映しますか？</div>'+
+      '<button data-m="append" style="'+BS+'background:#eaf6ee;border-color:#bfe3cc">➕ 今の項目に追加（工程を末尾に足す）<br><span style="font-size:10px;font-weight:400;color:#557">既存はそのまま。おすすめ</span></button>'+
+      '<button data-m="replace" style="'+BS+'">🔄 置き換える（全部入れ替え）<br><span style="font-size:10px;font-weight:400;color:#557">既存の項目構成をリセット</span></button>'+
+      '<button data-back style="'+CB+'">← 戻る</button>';
+    ov.innerHTML=box(h);
+    ov.querySelector('[data-m="append"]').onclick=function(){ov.remove();applyTemplate(t.procs,t.name,'append');};
+    ov.querySelector('[data-m="replace"]').onclick=function(){ov.remove();applyTemplate(t.procs,t.name,'replace');};
+    ov.querySelector('[data-back]').onclick=function(){showList();};
+  }
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);showList();
 }
 function renderItemEdit(){
   if(!document.getElementById('item-edit-overlay').classList.contains('on'))return;
