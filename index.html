@@ -282,6 +282,18 @@ body{font-family:'Noto Sans JP','メイリオ',Meiryo,'Hiragino Kaku Gothic ProN
 .complete-banner-text{font-size:12px;font-weight:700;color:#0F6E56}
 .complete-banner-sub{font-size:10px;color:#085041;margin-top:1px}
 .toast{position:fixed;bottom:calc(88px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#081634;color:#fff;padding:9px 20px;border-radius:20px;font-size:12px;font-weight:700;z-index:10000;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:92vw;text-align:center}
+/* 撮影/アルバム 選択シート */
+.sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:12000;align-items:flex-end;justify-content:center}
+.sheet-overlay.on{display:flex}
+.sheet{background:#fff;width:100%;max-width:460px;border-radius:18px 18px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.25)}
+.sheet-title{font-size:13px;font-weight:800;color:#0A1A38;text-align:center;padding:4px 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet-btn{display:flex;align-items:center;gap:12px;width:100%;background:#f4f7fb;border:1px solid #dde4ee;border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;font-family:inherit;text-align:left}
+.sheet-btn:active{background:#e9eff7}
+.sheet-ic{font-size:26px;flex-shrink:0}
+.sheet-tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sheet-tx b{font-size:15px;color:#0A1A38}
+.sheet-tx small{font-size:11px;color:#66748a}
+.sheet-cancel{width:100%;background:none;border:none;color:#66748a;font-size:14px;font-weight:800;padding:10px;cursor:pointer;font-family:inherit}
 .toast.show{opacity:1}
 input[type=file]{display:none}
 #guide-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;align-items:flex-end;justify-content:center}
@@ -510,6 +522,15 @@ input[type=file]{display:none}
   </div>
 </div>
 <input type="file" id="cam-input" accept="image/*" capture="environment">
+<input type="file" id="lib-input" accept="image/*">
+<div id="shoot-sheet" class="sheet-overlay" onclick="if(event.target===this)closeShootSheet()">
+  <div class="sheet">
+    <div class="sheet-title" id="shoot-sheet-title">写真を追加</div>
+    <button class="sheet-btn" onclick="doShoot('cam')"><span class="sheet-ic">📷</span><span class="sheet-tx"><b>その場で撮影</b><small>カメラを起動して撮る</small></span></button>
+    <button class="sheet-btn" onclick="doShoot('lib')"><span class="sheet-ic">🖼️</span><span class="sheet-tx"><b>アルバムから選ぶ</b><small>受け取った写真・撮影済みの写真に看板を入れる</small></span></button>
+    <button class="sheet-cancel" onclick="closeShootSheet()">キャンセル</button>
+  </div>
+</div>
 <canvas id="comp-canvas" style="display:none"></canvas>
 <div id="loading"><div class="ld-spin"></div><div class="ld-txt">看板を合成中…</div></div>
 <div id="pv">
@@ -1400,6 +1421,28 @@ function openCam(pi,ii){
     var i=document.getElementById('cam-input');i.value='';i.click();
   }
 }
+var _shootTarget=null;
+function chooseShoot(pi,ii){
+  // 「撮影」か「アルバムから選ぶ」を選ばせる
+  _shootTarget={pi:pi,ii:ii};
+  var proc=PROCESSES[pi];
+  var t=document.getElementById('shoot-sheet-title');
+  if(t)t.textContent=(getItemName?getItemName(pi,ii):(proc&&proc.items[ii])||'')||'写真を追加';
+  document.getElementById('shoot-sheet').classList.add('on');
+}
+function closeShootSheet(){document.getElementById('shoot-sheet').classList.remove('on');}
+function doShoot(mode){
+  var t=_shootTarget; closeShootSheet();
+  if(!t)return;
+  if(mode==='lib')openLibrary(t.pi,t.ii);
+  else openCam(t.pi,t.ii);
+}
+function openLibrary(pi,ii){
+  // アプリ外の写真（アルバム）を選んで看板を合成する
+  camTarget={pi:pi,ii:ii,savedToGallery:false};
+  updateCamMpDisplay();
+  var i=document.getElementById('lib-input');i.value='';i.click();
+}
 function openCamForMp(pi,ii,mpIdx){
   if(mpIdx!==currentMP){
     currentMP=mpIdx;
@@ -1742,8 +1785,7 @@ function updateCamKanban(){
 }
 
 /* File input fallback */
-document.getElementById('cam-input').addEventListener('change',function(e){
-  var file=e.target.files[0];
+function processPickedImage(file){
   if(!file||!camTarget)return;
   document.getElementById('loading').className='on';
   getExifOrientation(file,function(orientation){
@@ -1789,7 +1831,9 @@ document.getElementById('cam-input').addEventListener('change',function(e){
     };
     reader.readAsDataURL(file);
   });
-});
+}
+document.getElementById('cam-input').addEventListener('change',function(e){processPickedImage(e.target.files[0]);});
+document.getElementById('lib-input').addEventListener('change',function(e){processPickedImage(e.target.files[0]);});
 
 function getExifOrientation(file,cb){
   var reader=new FileReader();
@@ -4123,7 +4167,7 @@ function render(){
       '<button class="check-btn" onclick="toggleCheck('+currentProc+','+ii+')"><div class="check-icon"><svg viewBox="0 0 12 10"><polyline points="1,5 4,9 11,1"/></svg></div></button>'+
       '<div class="item-content">'+nameHtml+dimHtml+
       '<div class="item-meta">'+(s.date?'<span class="item-date">'+fmt(s.date)+'</span>':'')+(star?'<span class="item-star">★ 出来形</span>':'')+'</div></div>'+
-      '<button class="cam-btn" onclick="openCam('+currentProc+','+ii+')">'+
+      '<button class="cam-btn" onclick="chooseShoot('+currentProc+','+ii+')">'+
       '<div class="cam-icon '+(hp?'has-photo':'')+'"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>'+
       '<span class="cam-label">'+(hp?s.photos.length+'枚':'撮影')+'</span></button>'+
       '</div>'+(hp?'<div class="photo-strip">'+thumbs+'</div>':'')+
