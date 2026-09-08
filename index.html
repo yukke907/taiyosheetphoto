@@ -32,7 +32,7 @@ body{font-family:'Noto Sans JP','メイリオ',Meiryo,'Hiragino Kaku Gothic ProN
 .info-input{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;font-size:11px;font-family:inherit;padding:6px 10px;outline:none;transition:border-color .15s}
 .info-input::placeholder{color:rgba(255,255,255,.35)}
 .info-input:focus{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.12)}
-.mp-bar{background:#0C204A;border-bottom:1px solid rgba(255,255,255,.06);padding:6px 14px 8px;display:flex;flex-direction:column;align-items:stretch;gap:6px;position:sticky;top:0;z-index:120;transition:top 0.2s}
+.mp-bar{background:#0C204A;border-bottom:1px solid rgba(255,255,255,.06);padding:7px 14px;display:flex;flex-direction:column;align-items:stretch;gap:6px;position:sticky;top:0;z-index:120;transition:top 0.2s}
 .mp-row{display:flex;align-items:center;gap:8px}
 .mp-koji{display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer}
 .mp-koji-icon{font-size:12px;flex-shrink:0}
@@ -47,9 +47,9 @@ body{font-family:'Noto Sans JP','メイリオ',Meiryo,'Hiragino Kaku Gothic ProN
 .mp-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .mp-add{background:#F4A33A;border:none;color:#fff;padding:8px 14px;min-height:38px;border-radius:10px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.18);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .mp-del{background:rgba(220,50,50,.55);border:none;color:#fff;padding:8px 13px;min-height:38px;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer}
-.header{background:#0C204A;color:#fff;padding:10px 16px 8px;position:relative;z-index:110}
+.header{background:#0C204A;color:#fff;padding:6px 16px 6px;position:relative;z-index:110}
 .header-title{font-size:10px;opacity:.6;letter-spacing:.05em}
-.header-process{display:flex;align-items:center;gap:7px;margin-top:3px}
+.header-process{display:flex;align-items:center;gap:7px;margin-top:0}
 .process-badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:6px;white-space:nowrap;color:#fff;letter-spacing:.04em}
 .badge-prep{background:#6a7382}.badge-elec{background:#4a5563}.badge-civil{background:#7a6249}.badge-done{background:#3d6b52}.badge-check{background:#5a4e3a}
 .process-name{font-size:14px;font-weight:700;line-height:1.3;flex:1}
@@ -457,7 +457,6 @@ input[type=file]{display:none}
   </div>
 </div>
 <div class="mp-bar" id="mp-bar">
-  <div class="mp-koji" id="mp-koji-display" onclick="focusKoji()"><span class="mp-koji-icon">🏗</span><span class="mp-koji-text" id="mp-koji-text">工事名未入力</span></div>
   <div class="mp-row">
     <span class="mp-title" id="mp-title">測点</span>
     <div class="mp-scroll" id="mp-scroll"></div>
@@ -515,7 +514,7 @@ input[type=file]{display:none}
   </div>
 </div>
 <input type="file" id="cam-input" accept="image/*" capture="environment">
-<input type="file" id="lib-input" accept="image/*">
+<input type="file" id="lib-input" accept="image/*" multiple>
 <canvas id="comp-canvas" style="display:none"></canvas>
 <div id="loading"><div class="ld-spin"></div><div class="ld-txt">看板を合成中…</div></div>
 <div id="pv">
@@ -1782,10 +1781,8 @@ function updateCamKanban(){
   setTimeout(function(){rotateCamKanban();},10);
 }
 
-/* File input fallback */
-function processPickedImage(file){
-  if(!file||!camTarget)return;
-  document.getElementById('loading').className='on';
+/* 画像1枚を看板合成する（現在のcamTargetを使用）。cb(err,{composite,original,kanbanData}) */
+function buildComposite(file,cb){
   getExifOrientation(file,function(orientation){
     var reader=new FileReader();
     reader.onload=function(ev){
@@ -1797,7 +1794,6 @@ function processPickedImage(file){
         var swapped=(orientation>=5&&orientation<=8);
         var W=swapped?rawH:rawW;
         var H=swapped?rawW:rawH;
-        // 4:3比率にトリミング（横長すぎる場合）
         var srcX=0,srcW=W;
         if(W>H*1.33){srcW=Math.round(H*1.33);srcX=Math.round((W-srcW)/2);}
         var scale=Math.min(1,MAX/Math.max(srcW,H));
@@ -1806,7 +1802,6 @@ function processPickedImage(file){
         canvas.width=cw;canvas.height=ch;
         var ctx=canvas.getContext('2d');
         ctx.save();
-        // EXIFトリミング対応
         if(swapped){
           applyExifRotation(ctx,orientation,cw,ch,rawW*scale,rawH*scale);
           ctx.drawImage(img,0,0,rawW*scale,rawH*scale);
@@ -1815,23 +1810,70 @@ function processPickedImage(file){
           ctx.drawImage(img,srcX,0,srcW,H,0,0,cw,ch);
         }
         ctx.restore();
-        originalDataUrl=canvas.toDataURL('image/jpeg',0.92);
-        currentKanbanData=gatherKanbanData();
+        var original=canvas.toDataURL('image/jpeg',0.92);
+        var kd=gatherKanbanData();
         drawKanban(ctx,cw,ch);
-        compositeDataUrl=canvas.toDataURL('image/jpeg',0.92);
-        document.getElementById('pv-img').src=compositeDataUrl;
-        document.getElementById('loading').className='';
-        document.getElementById('pv').className='on';
-        document.body.style.overflow='hidden';
+        var composite=canvas.toDataURL('image/jpeg',0.92);
+        cb(null,{composite:composite,original:original,kanbanData:kd});
       };
-      img.onerror=function(){document.getElementById('loading').className='';showToast('画像の読み込みに失敗しました');};
+      img.onerror=function(){cb(new Error('img'));};
       img.src=ev.target.result;
     };
+    reader.onerror=function(){cb(new Error('read'));};
     reader.readAsDataURL(file);
   });
 }
+/* 1枚：プレビュー表示（従来） */
+function processPickedImage(file){
+  if(!file||!camTarget)return;
+  document.getElementById('loading').className='on';
+  buildComposite(file,function(err,res){
+    document.getElementById('loading').className='';
+    if(err){showToast('画像の読み込みに失敗しました');return;}
+    originalDataUrl=res.original;currentKanbanData=res.kanbanData;compositeDataUrl=res.composite;
+    document.getElementById('pv-img').src=compositeDataUrl;
+    document.getElementById('pv').className='on';
+    document.body.style.overflow='hidden';
+  });
+}
+/* 複数：プレビューなしで一括合成＆保存（アルバムから複数選択時） */
+function batchAddToItem(files){
+  if(!camTarget)return;
+  var pi=camTarget.pi,ii=camTarget.ii,st=getState();
+  var arr=Array.prototype.slice.call(files);
+  var loading=document.getElementById('loading');
+  var txt=loading.querySelector('.ld-txt');var origTxt=txt?txt.textContent:'';
+  loading.className='on';
+  var added=0,i=0;
+  function next(){
+    if(txt)txt.textContent='取り込み中… '+(i)+'/'+arr.length;
+    if(i>=arr.length){
+      loading.className='';if(txt)txt.textContent=origTxt;
+      if(added>0){
+        if(!st[pi][ii].checked){st[pi][ii].checked=true;st[pi][ii].date=Date.now();}
+        saveLS();render();
+      }
+      showToast(added+'枚を追加しました');
+      return;
+    }
+    var f=arr[i++];
+    buildComposite(f,function(err,res){
+      if(err){next();return;}
+      dbAdd(currentMP,pi,ii,res.composite,res.original,res.kanbanData,function(id){
+        st[pi][ii].photos.push({id:id||Date.now(),dataUrl:res.composite,originalUrl:res.original,kanbanData:res.kanbanData});
+        added++;next();
+      });
+    });
+  }
+  next();
+}
 document.getElementById('cam-input').addEventListener('change',function(e){processPickedImage(e.target.files[0]);});
-document.getElementById('lib-input').addEventListener('change',function(e){processPickedImage(e.target.files[0]);});
+document.getElementById('lib-input').addEventListener('change',function(e){
+  var files=e.target.files;
+  if(!files||!files.length||!camTarget)return;
+  if(files.length===1)processPickedImage(files[0]);
+  else batchAddToItem(files);
+});
 
 function getExifOrientation(file,cb){
   var reader=new FileReader();
