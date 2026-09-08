@@ -282,12 +282,11 @@ body{font-family:'Noto Sans JP','メイリオ',Meiryo,'Hiragino Kaku Gothic ProN
 .complete-banner-text{font-size:12px;font-weight:700;color:#0F6E56}
 .complete-banner-sub{font-size:10px;color:#085041;margin-top:1px}
 .toast{position:fixed;bottom:calc(88px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#081634;color:#fff;padding:9px 20px;border-radius:20px;font-size:12px;font-weight:700;z-index:10000;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:92vw;text-align:center}
-/* 撮影/アルバム モード切替（測点バー内・固定） */
-.mp-toprow{display:flex;align-items:center;gap:8px}
-.mp-toprow .mp-koji{flex:1}
-.mode-toggle{flex-shrink:0;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;height:30px;padding:0 12px;border-radius:15px;font-size:12px;font-weight:800;font-family:inherit;cursor:pointer}
-.mode-toggle:active{background:rgba(255,255,255,.3)}
-.mode-toggle.lib{background:#F4A33A;border-color:#F4A33A;color:#0A1A38;text-shadow:none}
+/* 撮影/アルバム モード切替（下部ナビの1ボタン） */
+.nav-mode{border-color:#0C204A !important;background:#eef3fb !important}
+.nav-mode .nav-label{color:#0C204A;font-weight:800}
+.nav-mode.lib{background:#F4A33A !important;border-color:#C97A1E !important}
+.nav-mode.lib .nav-label{color:#0A1A38}
 .toast.show{opacity:1}
 input[type=file]{display:none}
 #guide-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;align-items:flex-end;justify-content:center}
@@ -458,10 +457,7 @@ input[type=file]{display:none}
   </div>
 </div>
 <div class="mp-bar" id="mp-bar">
-  <div class="mp-toprow">
-    <div class="mp-koji" id="mp-koji-display" onclick="focusKoji()"><span class="mp-koji-icon">🏗</span><span class="mp-koji-text" id="mp-koji-text">工事名未入力</span></div>
-    <button class="mode-toggle" id="mode-toggle" onclick="toggleShootMode()" title="撮影／アルバム選択を切替"><span id="mode-toggle-ic">📷</span><span id="mode-toggle-lb">撮影</span></button>
-  </div>
+  <div class="mp-koji" id="mp-koji-display" onclick="focusKoji()"><span class="mp-koji-icon">🏗</span><span class="mp-koji-text" id="mp-koji-text">工事名未入力</span></div>
   <div class="mp-row">
     <span class="mp-title" id="mp-title">測点</span>
     <div class="mp-scroll" id="mp-scroll"></div>
@@ -1411,21 +1407,28 @@ function openCam(pi,ii){
   }
 }
 window.shootMode=(localStorage.getItem('rh_shoot_mode')==='lib')?'lib':'cam';
-function updateModeToggle(){
-  var lib=window.shootMode==='lib';
-  var b=document.getElementById('mode-toggle');if(!b)return;
-  b.classList.toggle('lib',lib);
-  var ic=document.getElementById('mode-toggle-ic'),lb=document.getElementById('mode-toggle-lb');
-  if(ic)ic.textContent=lib?'🖼️':'📷';
-  if(lb)lb.textContent=lib?'アルバム':'撮影';
-}
+function updateModeToggle(){/* 下部ナビのボタンはrender()で更新されるため何もしない（後方互換用に関数は残す） */}
 function toggleShootMode(){setShootMode(window.shootMode==='lib'?'cam':'lib');}
 function setShootMode(m){
   window.shootMode=(m==='lib')?'lib':'cam';
   localStorage.setItem('rh_shoot_mode',window.shootMode);
-  updateModeToggle();
   render();
-  showToast(window.shootMode==='lib'?'🖼️ アルバム選択モード（項目をタップ→写真を選ぶ）':'📷 撮影モード');
+  // 初回だけ詳しく説明。以降は短いトースト。（誰でも切替と分かるように）
+  if(window.shootMode==='lib'){
+    if(!localStorage.getItem('rh_seen_libmode')){
+      localStorage.setItem('rh_seen_libmode','1');
+      alert('🖼️ アルバム選択モードに切り替わりました。\n\n各項目の「選択」ボタンを押すと、端末の写真アルバムから写真を選んで看板を入れられます。\n\n※このボタンをもう一度押すと「📷 撮影」モードに戻ります（切り替えスイッチです）。');
+    } else {
+      showToast('🖼️ アルバム選択モード：項目をタップ→写真を選ぶ（もう一度押すと撮影に戻る）');
+    }
+  } else {
+    if(!localStorage.getItem('rh_seen_cammode')){
+      localStorage.setItem('rh_seen_cammode','1');
+      alert('📷 撮影モードに切り替わりました。\n\n各項目の「撮影」ボタンを押すと、その場でカメラ撮影します（基本はこのモードです）。\n\n※このボタンをもう一度押すと「🖼️ アルバム」モードに切り替わります。');
+    } else {
+      showToast('📷 撮影モード：項目をタップ→カメラで撮影');
+    }
+  }
 }
 function shootItem(pi,ii){
   // モードに応じて直接：撮影 or アルバム選択（毎回のポップアップなし）
@@ -4185,6 +4188,7 @@ function render(){
     '<div class="bottom-nav">'+
     '<button type="button" onclick="triggerImport()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1.5px solid #0C204A;background:#fff;border-radius:8px;cursor:pointer;padding:2px 8px;height:40px;min-width:42px;font-family:inherit"><span style=\'font-size:14px;line-height:1\'>📥</span><span style=\'font-size:9px;font-weight:700;color:#0C204A;white-space:nowrap\'>データ受信</span></button>'+
     '<button onclick="exportData()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1.5px solid #0C204A;background:#fff;border-radius:8px;cursor:pointer;padding:2px 8px;height:40px;min-width:42px"><span style=\'font-size:14px;line-height:1\'>📤</span><span style=\'font-size:9px;font-weight:700;color:#0C204A;white-space:nowrap\'>データ送信</span></button>'+
+    '<button class="nav-btn-labeled nav-mode'+(window.shootMode==='lib'?' lib':'')+'" onclick="toggleShootMode()"><span class="nav-icon">'+(window.shootMode==='lib'?'🖼️':'📷')+'</span><span class="nav-label">'+(window.shootMode==='lib'?'アルバム':'撮影')+'</span></button>'+
     '<button class="nav-btn-labeled" onclick="showGallery()"><span class="nav-icon">🗂️</span><span class="nav-label">ギャラリー</span></button>'+
     '<button class="nav-btn-labeled nav-btn-ledger" onclick="showLedger()"><span class="nav-icon">📋</span><span class="nav-label">写真台帳</span></button>'+
     '</div>';
