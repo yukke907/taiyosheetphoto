@@ -409,7 +409,7 @@ input[type=file]{display:none}
 .led-page-header{display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid #0A1A38;padding-bottom:4px;margin-bottom:5px}
 .led-page-header-title{font-size:13px;font-weight:700;color:#0A1A38}
 .led-page-header-info{font-size:9px;color:#666;text-align:right}
-.led-row{display:flex;flex-direction:row;border:1px solid #aaa;margin-bottom:3mm;height:85mm;position:relative;transition:background .15s,box-shadow .15s}
+.led-row{display:flex;flex-direction:row;border:none;margin-bottom:3mm;height:85mm;position:relative;transition:background .15s,box-shadow .15s}
 .no-print-drag{cursor:grab;user-select:none;-webkit-touch-callout:none}
 .no-print-drag:active{cursor:grabbing}
 .led-row.dragging-row{opacity:0.45;transform:scale(0.98);background:rgba(220,38,38,.08);box-shadow:0 4px 12px rgba(0,0,0,.2)}
@@ -418,10 +418,10 @@ input[type=file]{display:none}
 @media print {.no-print-drag{cursor:default !important}.led-row.dragging-row{box-shadow:none !important;background:transparent !important;opacity:1 !important;transform:none !important}.led-row.drop-above::before,.led-row.drop-below::after{display:none !important}}
 .led-row-empty{height:85mm;margin-bottom:3mm}
 .led-row:last-child{margin-bottom:0}
-.led-photo{position:relative;flex:0 0 66%;overflow:hidden;background:#fff;height:85mm}
+.led-photo{position:relative;flex:0 0 66%;overflow:hidden;background:#fff;height:85mm;box-sizing:border-box;border:1px solid #aaa}
 .led-photo img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;object-position:center center;display:block}
 .led-photo-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:12px}
-.led-caption{flex:1;border-left:1px solid #aaa;display:flex;flex-direction:column;overflow:hidden;padding:4mm 3mm;box-sizing:border-box;justify-content:space-between;gap:0}
+.led-caption{flex:1;border:1px solid #aaa;border-left:none;display:flex;flex-direction:column;overflow:hidden;padding:4mm 3mm;box-sizing:border-box;justify-content:space-between;gap:0}
 .led-cap-title{font-size:9px;font-weight:700;color:#1a1d24;margin-bottom:4px;line-height:1.3;border-bottom:1px solid #ccc;padding-bottom:2px}
 .led-cap-row{display:flex;flex-direction:row;align-items:center;gap:2px;line-height:1.4;padding:1px 0}
 .led-cap-label{color:#333;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;width:54px;display:inline-block;text-align:left}
@@ -471,12 +471,12 @@ input[type=file]{display:none}
   .led-page{margin:0;padding:6mm 4mm 4mm;box-shadow:none;page-break-after:always;break-after:page;width:210mm;max-width:210mm;height:297mm;max-height:297mm;min-height:0 !important;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:0}
   .led-cover:last-child{page-break-after:avoid;break-after:avoid}
   .led-page:last-child{page-break-after:avoid;break-after:avoid}
-  .led-row{height:85mm !important;min-height:85mm !important;max-height:85mm !important;flex-shrink:0 !important;flex-grow:0 !important;margin-bottom:3mm;border:1px solid #aaa !important;display:flex !important;align-items:stretch !important}
+  .led-row{height:85mm !important;min-height:85mm !important;max-height:85mm !important;flex-shrink:0 !important;flex-grow:0 !important;margin-bottom:3mm;border:none !important;display:flex !important;align-items:stretch !important}
   .led-row-empty{height:85mm !important;min-height:85mm !important;max-height:85mm !important;flex-shrink:0 !important;flex-grow:0 !important}
   .led-row:last-child{margin-bottom:0}
-  .led-photo{position:relative !important;flex:0 0 66% !important;height:85mm !important;max-height:85mm !important;border-right:1px solid #aaa !important;overflow:hidden;background:#fff}
+  .led-photo{position:relative !important;flex:0 0 66% !important;height:85mm !important;max-height:85mm !important;box-sizing:border-box !important;border:1px solid #aaa !important;overflow:hidden;background:#fff}
   .led-photo img{position:absolute !important;top:0 !important;left:0 !important;width:100% !important;height:100% !important;object-fit:contain !important;object-position:center center !important;display:block !important;margin:0 !important}
-  .led-caption{flex:1 !important;height:85mm !important;max-height:85mm !important;border-left:none !important}
+  .led-caption{flex:1 !important;height:85mm !important;max-height:85mm !important;box-sizing:border-box !important;border:1px solid #aaa !important;border-left:none !important}
   /* 印刷時：編集UIの装飾を全て消す */
   .led-cap-editable,.led-cap-editable:focus{outline:none !important;background:transparent !important;border:none !important}
   .led-cover-field-value[contenteditable],.led-cover-field-value[contenteditable]:focus{outline:none !important;background:transparent !important}
