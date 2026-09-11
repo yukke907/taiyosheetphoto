@@ -512,6 +512,19 @@ input[type=file]{display:none}
   .ba-list-grid .ba-li{margin:0}
   .ba-li img{max-height:300px}
   .ba-li select{cursor:pointer}
+  /* 台帳（PDF作成）画面：ツールバー・サムネイルを大きく操作しやすく */
+  #ledger .led-top{padding:10px 18px}
+  .led-sort-btn{font-size:13px;padding:8px 13px;border-radius:7px}
+  .led-sort-btn:hover{background:rgba(255,255,255,.32)}
+  .led-print-btn{font-size:15px;padding:9px 18px;border-radius:8px}
+  .led-print-btn:hover{background:#e8952f}
+  .led-close{width:44px;height:44px;font-size:20px}
+  .led-close:hover{background:rgba(255,255,255,.28)}
+  .led-thumb-list{padding:12px 14px;gap:10px}
+  .led-thumb-img{width:120px!important;height:84px!important}
+  .led-thumb-item{width:120px!important}
+  .led-thumb-label{font-size:10px}
+  .led-content{padding:16px 0 40px}
 }
 @media (min-width:1300px){
   .ba-list-grid{grid-template-columns:repeat(3,1fr)}
@@ -717,6 +730,7 @@ input[type=file]{display:none}
       <button class="led-sort-btn" onclick="ledgerSort('mp')">測点順</button>
       <button class="led-sort-btn led-zoom-btn" onclick="ledgerZoom(-0.1)">🔍−</button>
       <button class="led-sort-btn led-zoom-btn" onclick="ledgerZoom(0.1)">🔍＋</button>
+      <button class="led-sort-btn led-zoom-btn" onclick="ledgerFit()">画面に合わせる</button>
       <button class="led-print-btn" onclick="printLedger()">🖨️ PDF出力</button>
       <button class="led-close" onclick="closeLedger()">✕</button>
     </div>
@@ -2765,16 +2779,9 @@ function showLedger(){
       if(!wrap||!content)return;
       var page=wrap.querySelector('.led-page,.led-cover');
       if(!page)return;
-      var contentW=content.clientWidth-16;
-      var pageWidth=page.offsetWidth;
-      var isPC=window.innerWidth>=900;
-      // PCは0.55倍でいきなり全体表示、スマホはcontentW幅に合わせる
-      var scale=isPC?0.55:(pageWidth>contentW?contentW/pageWidth:1);
-      _ledgerScale=scale;
-      wrap.style.transform='scale('+scale+')';
-      wrap.style.transformOrigin='top center';
-      wrap.style.marginBottom='-'+(wrap.offsetHeight*(1-scale))+'px';
-      if(!isPC){
+      _applyLedgerScale(_ledgerAutoScale());
+      if(window.innerWidth<900){
+        var contentW=content.clientWidth-16;
         content.style.minWidth=contentW+'px';
         content.style.overflow='hidden';
         content.addEventListener('touchstart',function(){content.style.overflow='auto';},{passive:true,once:true});
@@ -2784,13 +2791,31 @@ function showLedger(){
 }
 function closeLedger(){document.getElementById('ledger').className='';document.body.style.overflow='';if(typeof notifyTutorialAction==='function')setTimeout(function(){notifyTutorialAction('ledger-closed');},200);}
 var _ledgerScale=1;
-function ledgerZoom(delta){
+function _applyLedgerScale(scale){
   var wrap=document.getElementById('led-wrap');
   if(!wrap)return;
-  _ledgerScale=Math.min(2,Math.max(0.3,_ledgerScale+delta));
-  wrap.style.transform='scale('+_ledgerScale+')';
+  _ledgerScale=scale;
+  wrap.style.transform='scale('+scale+')';
   wrap.style.transformOrigin='top center';
-  wrap.style.marginBottom='-'+(wrap.offsetHeight*(1-_ledgerScale))+'px';
+  wrap.style.marginBottom='-'+(wrap.offsetHeight*(1-scale))+'px';
+}
+function _ledgerAutoScale(){
+  var wrap=document.getElementById('led-wrap');
+  var content=document.getElementById('led-content');
+  if(!wrap||!content)return 1;
+  var page=wrap.querySelector('.led-page,.led-cover');
+  if(!page)return 1;
+  if(window.innerWidth>=900){
+    // PC：ページ並び全体の幅が画面に収まる倍率（読みやすさ優先・最大1.0）
+    return Math.min(1,(content.clientWidth-40)/wrap.offsetWidth);
+  }
+  var contentW=content.clientWidth-16;
+  var pageWidth=page.offsetWidth;
+  return pageWidth>contentW?contentW/pageWidth:1;
+}
+function ledgerFit(){_applyLedgerScale(_ledgerAutoScale());}
+function ledgerZoom(delta){
+  _applyLedgerScale(Math.min(2,Math.max(0.3,_ledgerScale+delta)));
 }
 function loadScript(src,cb){
   if(document.querySelector('script[src="'+src+'"]')){cb();return;}
