@@ -2929,10 +2929,27 @@ function printLedger(){
           inputBackup.forEach(function(b){b.inp.style.display='';b.span.remove();});
           showToast('ページがありません');return;
         }
+        // html2canvasはobject-fit:containを無視して画像を枠いっぱいに引き伸ばす。
+        // 取り込み前に各写真を正しい比率（contain相当）の実寸に letterbox しておく。
+        var imgFix=[];
+        document.querySelectorAll('.led-photo img').forEach(function(im){
+          var cell=im.parentNode;if(!cell)return;
+          var cw=cell.clientWidth,ch=cell.clientHeight;
+          var nw=im.naturalWidth,nh=im.naturalHeight;
+          if(!cw||!ch||!nw||!nh)return;
+          var sc=Math.min(cw/nw,ch/nh);
+          var dw=nw*sc,dh=nh*sc;
+          imgFix.push({im:im,css:im.style.cssText});
+          im.style.width=dw+'px';im.style.height=dh+'px';
+          im.style.left=((cw-dw)/2)+'px';im.style.top=((ch-dh)/2)+'px';
+          im.style.objectFit='fill';im.style.right='auto';im.style.bottom='auto';
+        });
+        function restoreImgFix(){imgFix.forEach(function(b){b.im.style.cssText=b.css;});imgFix=[];}
         var pdf=new jsPDF('p','mm','a4');
         var idx=0;
         function nextPage(){
           if(idx>=pages.length){
+            restoreImgFix();
             // inputを元に戻す
             inputBackup.forEach(function(b){b.inp.style.display='';b.span.remove();});
             // contenteditable状態を復元
