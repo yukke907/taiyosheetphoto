@@ -3092,10 +3092,11 @@ function renderLedger(){
   // 表紙
   var today=new Date();
   var todayStr=today.getFullYear()+'年'+(today.getMonth()+1)+'月'+today.getDate()+'日';
-  var covDate=localStorage.getItem('rh_covdate')||todayStr;
-  var period=localStorage.getItem('rh_period1')||'';
-  var period2=localStorage.getItem('rh_period2')||'';
-  var client=localStorage.getItem('rh_client')||'';
+  // 工期・発注者・作成日は工事ごとに保存（pKey）。旧データ(グローバルキー)は読み込み時にフォールバック
+  var covDate=localStorage.getItem(pKey('rh_covdate'))||localStorage.getItem('rh_covdate')||todayStr;
+  var period=localStorage.getItem(pKey('rh_period1'))||localStorage.getItem('rh_period1')||'';
+  var period2=localStorage.getItem(pKey('rh_period2'))||localStorage.getItem('rh_period2')||'';
+  var client=localStorage.getItem(pKey('rh_client'))||localStorage.getItem('rh_client')||'';
   html+='<div class="led-cover">';
   html+='<div class="led-cover-title">施　工　写　真　台　帳</div>';
   html+='<div class="led-cover-gap"></div>';
@@ -3158,10 +3159,10 @@ function renderLedger(){
     var inp=document.getElementById(id);
     if(!inp)return;
     if(inp.tagName==='INPUT'){
-      inp.addEventListener('input',function(){localStorage.setItem(covMap[id],this.value);});
+      inp.addEventListener('input',function(){localStorage.setItem(pKey(covMap[id]),this.value);});
     } else {
       // contenteditable div の場合
-      inp.addEventListener('input',function(){localStorage.setItem(covMap[id],this.textContent);});
+      inp.addEventListener('input',function(){localStorage.setItem(pKey(covMap[id]),this.textContent);});
       // フォーカス時の枠表示
       inp.addEventListener('focus',function(){this.style.outline='1px dashed rgba(10,26,56,.3)';this.style.outlineOffset='2px';});
       inp.addEventListener('blur',function(){this.style.outline='none';});
@@ -4052,9 +4053,10 @@ function exportData(){
       koji:localStorage.getItem(pKey('rh_koji'))||'',
       place:localStorage.getItem(pKey('rh_place'))||'',
       company:localStorage.getItem(pKey('rh_company'))||'',
-      client:localStorage.getItem(pKey('rh_client'))||'',
-      period1:localStorage.getItem(pKey('rh_period1'))||'',
-      period2:localStorage.getItem(pKey('rh_period2'))||'',
+      client:localStorage.getItem(pKey('rh_client'))||localStorage.getItem('rh_client')||'',
+      period1:localStorage.getItem(pKey('rh_period1'))||localStorage.getItem('rh_period1')||'',
+      period2:localStorage.getItem(pKey('rh_period2'))||localStorage.getItem('rh_period2')||'',
+      covdate:localStorage.getItem(pKey('rh_covdate'))||localStorage.getItem('rh_covdate')||'',
       mp:localStorage.getItem(pKey('rh_mp'))||'',
       photos:photos
     };
@@ -4161,6 +4163,7 @@ function doImportAsNew(data,kojiName){
   if(data.client)localStorage.setItem('rh_client_'+newId,data.client);
   if(data.period1)localStorage.setItem('rh_period1_'+newId,data.period1);
   if(data.period2)localStorage.setItem('rh_period2_'+newId,data.period2);
+  if(data.covdate)localStorage.setItem('rh_covdate_'+newId,data.covdate);
   if(data.mp)localStorage.setItem('rh_mp_'+newId,data.mp);
   var photos=data.photos||[];
   var idx=0;
@@ -4186,6 +4189,12 @@ function doImportAsNew(data,kojiName){
 function doImportMerge(data,kojiName){
   var targetId=currentProjectId;
   showToast('マージ中…');
+  // 工期・発注者・作成日は、現在の工事が未入力の場合のみ引き継ぐ（既存の入力は上書きしない）
+  [['period1','rh_period1'],['period2','rh_period2'],['client','rh_client'],['covdate','rh_covdate']].forEach(function(m){
+    var val=data[m[0]];if(!val)return;
+    var lsKey=m[1]+'_'+targetId;
+    if(!localStorage.getItem(lsKey))localStorage.setItem(lsKey,val);
+  });
   // 1. 進捗マージ：checkedがtrueの方を優先
   if(data.mp){
     try{
